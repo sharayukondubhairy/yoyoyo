@@ -1,0 +1,45 @@
+#PART 1-HSV Transformation
+import ee
+import geemap
+ee.Authenticate()
+ee.Initialize(project='ee-sharayurslab')
+
+
+#Load a LANDSAT 8 top-of-atmosphere reflectance image
+image=ee.Image('LANDSAT/LC08/C02/T1_TOA/LC08_044034_20140318')
+
+#Convert yhe RGB bands to HSV color space
+hsv=image.select(['B4','B3','B2']).rgbToHsv()
+
+#swap in the panchromatic band and convert back to RGB
+sharpened=ee.Image.cat([hsv.select('hue'),hsv.select('saturation'),image.select('B8')]).hsvToRgb()
+
+#Define a map centered on San Francisco,California
+map_sharpened=geemap.Map(centre=[37.76664,-122.44829],zoom=13)
+map_sharpened.add_layer(image,{'bands':['B4','B3','B2'],'min':0,'max':0.25,'gamma':[1.1,1.1,1],},'rgb',)
+map_sharpened.add_layer(sharpened,{'min':0,'max':0.25,'gamma':[1.1,1.1,1]},'pan-sharpened',)
+display(map_sharpened)
+
+#PART2-BROVEY Transformation
+#Load a LANDSAT 8 top-of-atmosphere reflectance image
+image=ee.Image('LANDSAT/LC08/C02/T1_TOA/LC08_044034_20140318')
+
+#select bands for sharpenening(Red,Green,Blue)
+rgb=image.select(['B4','B3','B2'])
+
+#Selct panchromatic band(high resolution)
+pan=image.select('B8')
+
+#Brovey transformation:Scale the rgb bands using the panchromatioc bands
+sum_rgb=rgb.reduce(ee.Reducer.sum())
+brovey=rgb.divide(sum_rgb).multiply(pan)
+
+#Define a map centered on San Francisco,California
+map_brovey_sharpened=geemap.Map(centre=[37.76664,-122.44829],zoom=13)
+
+#Add original RGB image
+map_brovey_sharpened.add_layer(image,{'bands':['B4','B3','B2'],'min':0,'max':0.25,'gamma':[1.1,1.1,1],},'Original RGB Image',)
+map_brovey_sharpened.add_layer(brovey,{'min':0,'max':0.25,'gamma':[1.3,1.3,1.3]},'Brovey Pan Sharpened Image',)
+
+#Display the map
+display(map_brovey_sharpened)
