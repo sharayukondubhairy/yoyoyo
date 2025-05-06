@@ -1,0 +1,105 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from skimage.util import random_noise
+from skimage.metrics import peak_signal_noise_ratio as psnr
+
+# Step 1: Read the image
+image = cv2.imread('/content/lena.jpg', cv2.IMREAD_GRAYSCALE)
+print("Original Image Shape:", image.shape)
+
+# Step 2: Generate Gaussian noise
+mean = 0
+stddev = 2
+noise = np.random.normal(mean, stddev, image.shape).astype(np.uint8)
+noisy_image = cv2.add(image, noise)
+
+# Step 3: Plot original, noise, and noisy images
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 3, 1)
+plt.title("Original Image")
+plt.imshow(image, cmap='gray')
+plt.subplot(1, 3, 2)
+plt.title("Gaussian Noise")
+plt.imshow(noise, cmap='gray')
+plt.subplot(1, 3, 3)
+plt.title("Noisy Image")
+plt.imshow(noisy_image, cmap='gray')
+plt.show()
+
+# Step 4: Denoising using Gaussian filter
+denosed_gaussian = cv2.GaussianBlur(noisy_image, (5, 5), 1)
+
+# Step 5: Plot results
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 3, 1)
+plt.title("Original Image")
+plt.imshow(image, cmap='gray')
+plt.subplot(1, 3, 2)
+plt.title("Noisy Image")
+plt.imshow(noisy_image, cmap='gray')
+plt.subplot(1, 3, 3)
+plt.title("Denoised (Gaussian)")
+plt.imshow(denosed_gaussian, cmap='gray')
+plt.show()
+
+# Step 6: Compute PSNR
+gaussian_psnr = psnr(image, denosed_gaussian)
+print("PSNR after Gaussian Filter:", gaussian_psnr)
+
+# Step 7: Denoising using fastNlMeansDenoising
+denosed_nlm = cv2.fastNlMeansDenoising(noisy_image, None, 10, 7, 21)
+
+# Step 8: Plot results
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 3, 1)
+plt.title("Original Image")
+plt.imshow(image, cmap='gray')
+plt.subplot(1, 3, 2)
+plt.title("Noisy Image")
+plt.imshow(noisy_image, cmap='gray')
+plt.subplot(1, 3, 3)
+plt.title("Denoised (fastNlMeans)")
+plt.imshow(denosed_nlm, cmap='gray')
+plt.show()
+
+# Step 9: Compute PSNR
+nlm_psnr = psnr(image, denosed_nlm)
+print("PSNR after fastNlMeansDenoising:", nlm_psnr)
+
+# Step 10: Generate salt-and-pepper noise
+sp_noise = random_noise(image, mode='s&p', amount=0.02)
+salt_pepper_image = (sp_noise * 255).astype(np.uint8)
+
+# Step 11: Plot results
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 3, 1)
+plt.title("Original Image")
+plt.imshow(image, cmap='gray')
+plt.subplot(1, 3, 2)
+plt.title("Salt & Pepper Noise")
+plt.imshow(salt_pepper_image, cmap='gray')
+plt.subplot(1, 3, 3)
+plt.title("Noisy Image")
+plt.imshow(salt_pepper_image, cmap='gray')
+plt.show()
+
+# Step 12: Denoising using Median Filter
+denosed_median = cv2.medianBlur(salt_pepper_image, 5)
+
+# Step 13: Plot results
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 3, 1)
+plt.title("Original Image")
+plt.imshow(image, cmap='gray')
+plt.subplot(1, 3, 2)
+plt.title("Noisy Image")
+plt.imshow(salt_pepper_image, cmap='gray')
+plt.subplot(1, 3, 3)
+plt.title("Denoised (Median)")
+plt.imshow(denosed_median, cmap='gray')
+plt.show()
+
+# Step 14: Compute PSNR
+median_psnr = psnr(image, denosed_median)
+print("PSNR after Median Filter:", median_psnr)
