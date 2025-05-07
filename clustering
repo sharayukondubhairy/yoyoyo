@@ -1,0 +1,91 @@
+## Import libraries
+import ee
+import geemap
+ee.Authenticate()
+ee.Initialize(project='ee-sharayurslab')
+
+## Create an interactive map
+Map = geemap.Map()
+Map
+
+## Add data to the map
+point = ee.Geometry.Point([-122.4439, 37.7538])
+
+image = (
+    ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
+    .filterBounds(point)
+    .filterDate("2023-01-01", "2023-12-31")
+    .sort("CLOUD_COVER")
+    .first()
+    .select(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7'])
+)
+
+vis_params = {"min": 0, "max": 3000, "bands": ["SR_B5", "SR_B4", "SR_B3"]}
+
+Map.centerObject(point, 8)
+Map.addLayer(image, vis_params, "Landsat-8")
+# region = ee.Geometry.Rectangle([-122.6003, 37.4831, -121.8036, 37.8288]) OR
+region = ee.Geometry.Point([-122.4439, 37.7538]).buffer(10000)
+
+# Make the training dataset.
+training = image.sample(
+    **{
+        #'region': region,
+        "scale": 30,
+        "numPixels": 5000,
+        "seed": 0,
+        "geometries": True,  # Set this to False to ignore geometries
+    }
+)
+
+Map.addLayer(training, {}, "training", False)
+Map
+
+# Instantiate the clusterer and train it.
+n_clusters = 5
+clusterer = ee.Clusterer.wekaKMeans(n_clusters).train(training)
+
+# Cluster the input using the trained clusterer.
+result = image.cluster(clusterer)
+
+# # Display the clusters with random colors.
+Map.addLayer(result.randomVisualizer(), {}, "clusters")
+Map
+
+
+legend_keys = ["One", "Two", "Three", "Four", "etc"]
+legend_colors = ["#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072", "#80B1D3"]
+
+# Reclassify the map
+result = result.remap([0, 1, 2, 3, 4], [1, 2, 3, 4, 5])
+
+Map.addLayer(
+    result, {"min": 1, "max": 5, "palette": legend_colors}, "Labelled clusters"
+)
+Map.add_legend(
+    legend_keys=legend_keys, legend_colors=legend_colors, position="bottomright"
+)
+Map
+
+import os
+
+# Define a directory that exists
+out_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+# If the directory doesn't exist, create it
+os.makedirs(out_dir, exist_ok=True)
+out_file = os.path.join(out_dir, "cluster1.tif")
+
+geemap.ee_export_image(result, filename=out_file, scale=90)
+
+pip install rasterio
+#Upload your cluster1.tif to Google drive
+from google.colab import drive
+drive.mount('/content/drive')
+
+print("Cluster1")
+import rasterio as rio
+clusters1 = rio.open("/content/drive/MyDrive/rs lab/exp8/cluster1.tif")
+
+from rasterio.plot import show
+
+show(clusters1)
