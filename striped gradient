@@ -1,0 +1,101 @@
+from osgeo import gdal
+import numpy as np
+
+# Output path
+output_path ="D:/Final_Year/4_RemoteSensing/Practical_Exam/1B/striped_gradient_2.tif"
+
+# Raster dimensions
+x_size, y_size = 100, 100
+band_count = 1
+data_type = gdal.GDT_Byte  # 0–255 grayscale
+
+# Create the raster dataset
+driver = gdal.GetDriverByName('GTiff')
+ds = driver.Create(output_path, x_size, y_size, band_count, data_type)
+
+# Set geotransform [origin_x, pixel_width, rotation_x, origin_y, rotation_y, pixel_height]
+ds.SetGeoTransform([0,1,0,0,0,-1])
+
+# Create striped data: each 10-pixel row band has a solid value
+stripe_height = 10
+num_stripes = y_size // stripe_height
+values = np.linspace(255, 0, num_stripes, dtype=np.uint8)
+# values = np.random.randint(0, 256, size=num_stripes, dtype=np.uint8)
+
+# Create gradient stripes
+data = np.zeros((y_size, x_size), dtype=np.uint8)
+for i, val in enumerate(values):
+    start_row = i * stripe_height
+    end_row = start_row + stripe_height
+    data[start_row:end_row, :] = val
+
+# Write data to raster band
+band = ds.GetRasterBand(1)
+band.WriteArray(data)
+band.SetNoDataValue(0)
+
+band.FlushCache()
+ds = None
+
+# Add raster to QGIS
+iface.addRasterLayer(output_path, "Striped Gradient")
+print("Striped gradient raster created and loaded into QGIS.")
+
+
+ *Vegetation Analysis Composites*
+
+| Composite | Bands (RGB)         | Use Case                             | Appearance                        |
+| --------- | ------------------- | ------------------------------------ | --------------------------------- |
+| *5/4/3* | NIR / Red / Green   | *Healthy vegetation* (False Color) | Veg = *red*                     |
+| *6/5/4* | SWIR1 / NIR / Red   | Moisture stress in plants            | Veg = *green*                   |
+| *7/6/4* | SWIR2 / SWIR1 / Red | Burned area / plant stress           | Burned = *black/purple*         |
+| *4/3/2* | Red / Green / Blue  | *Natural Color* (True color)       | Veg = *green, water = **blue* |
+
+---
+
+*Geology & Soil*
+
+| Composite | Bands (RGB)          | Use Case                         | Appearance              |
+| --------- | -------------------- | -------------------------------- | ----------------------- |
+| *7/6/2* | SWIR2 / SWIR1 / Blue | Rock types & mineral differences | Soil contrasts          |
+| *6/5/2* | SWIR1 / NIR / Blue   | Vegetation & bare land           | Soil = tan, Veg = green |
+| *7/5/3* | SWIR2 / NIR / Green  | Rock exposure detection          |                         |
+
+---
+
+*Water / Snow / Ice Detection*
+
+| Composite | Bands (RGB)          | Use Case                         | Appearance                               |
+| --------- | -------------------- | -------------------------------- | ---------------------------------------- |
+| *5/6/4* | NIR / SWIR1 / Red    | Flood detection / water mapping  | Water = *black/blue*                   |
+| *6/5/2* | SWIR1 / NIR / Blue   | Water clarity & shallow depth    | Water = *dark blue*                    |
+| *6/3/2* | SWIR1 / Green / Blue | *Snow vs cloud* discrimination | Snow = *white, cloud = **light gray* |
+
+---
+
+*Snow & Ice*
+
+| Composite | Bands (RGB)           | Use Case           | Appearance                       |
+| --------- | --------------------- | ------------------ | -------------------------------- |
+| *3/6/7* | Green / SWIR1 / SWIR2 | Snow / Ice mapping | Snow = *white, Ice = **blue* |
+
+---
+
+*Urban & Built-up Areas*
+
+| Composite | Bands (RGB)         | Use Case                             | Appearance                                |
+| --------- | ------------------- | ------------------------------------ | ----------------------------------------- |
+| *7/5/3* | SWIR2 / NIR / Green | Urban heat islands, manmade features | Cities = *gray, vegetation = **green* |
+| *5/6/3* | NIR / SWIR1 / Green | Urban/rural interface                | Urban = *brown/gray*                    |
+
+---
+
+ Vegetation Indices (with these bands)
+
+| Index    | Formula                                           | Bands Used               |
+| -------- | ------------------------------------------------- | ------------------------ |
+| *NDVI* | (NIR - Red) / (NIR + Red)                         | Band 5, Band 4           |
+| *EVI*  | 2.5 \* (NIR - Red) / (NIR + 6×Red - 7.5×Blue + 1) | Bands 5, 4, 2            |
+| *SAVI* | ((NIR - Red) / (NIR + Red + L)) × (1 + L)         | Band 5, Band 4 (L = 0.5) |
+| *NDWI* | (Green - NIR) / (Green + NIR)                     | Band 3, Band 5           |
+| *NDSI* | (Green - SWIR) / (Green + SWIR)                   | Band 3, Band 6           |
